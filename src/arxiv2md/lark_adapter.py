@@ -6,7 +6,7 @@ that it renders correctly inside Lark messages and documents.
 
 Key transformations:
 - Images: plain-text references → ``<image>`` tags for Lark document preview.
-- Display math: ``$$…$$`` → Lark-compatible ``$$…$$`` on its own line (kept).
+- Display math: ``$$ … $$`` → cleaned & centered ``$$…$$`` block.
 - Tables: standard pipe tables are kept (Lark supports them).
 """
 
@@ -28,6 +28,10 @@ _IMAGE_LINE_RE = re.compile(
     re.MULTILINE | re.IGNORECASE,
 )
 
+# Display math: "$$ (num) $formula$ $$" or "$$ formula $$"
+# Captures the entire line so we can clean up nested $ and equation numbers.
+_DISPLAY_MATH_RE = re.compile(r"^\$\$\s*(.+?)\s*\$\$$", re.MULTILINE)
+
 _ARXIV_HTML_BASE = "https://arxiv.org"
 
 
@@ -41,13 +45,42 @@ def convert_markdown_to_lark(md: str, *, arxiv_html_base: str = _ARXIV_HTML_BASE
         result,
     )
 
-    # 2. Convert remaining standalone image lines to <image> tags
+    # 2. Clean up display math for centered rendering
+    result = _DISPLAY_MATH_RE.sub(_clean_display_math, result)
+
+    # 3. Convert remaining standalone image lines to <image> tags
     result = _IMAGE_LINE_RE.sub(
         lambda m: _image_line_to_lark(m, arxiv_html_base),
         result,
     )
 
     return result
+
+
+def _clean_display_math(match: re.Match) -> str:
+    """Clean display math for Lark: strip nested $, move eq number, ensure $$…$$ block."""
+    inner = match.group(1).strip()
+
+    # Extract leading equation number like "(1)" or "(2.3)"
+    eq_num = ""
+    num_match = re.match(r"^\([\d.]+\)\s*", inner)
+    if num_match:
+        eq_num = num_match.group(0).strip()
+        inner = inner[num_match.end():]
+
+    # Strip nested inline-math $ delimiters: "$formula$" → "formula"
+    # Handle multiple adjacent $…$ groups (e.g. "$a$ $=b$" → "a =b")
+    inner = re.sub(r"\$([^$]*)\$", r"\1", inner)
+    inner = inner.strip()
+
+    if not inner:
+        return match.group(0)
+
+    # Append equation number at the end if present
+    if eq_num:
+        inner = f"{inner} \\qquad {eq_num}"
+
+    return f"$$\n{inner}\n$$"
 
 
 def _resolve_src(src: str, base: str) -> str:

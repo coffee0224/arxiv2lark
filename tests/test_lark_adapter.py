@@ -41,3 +41,27 @@ def test_custom_base_url() -> None:
     md = "Figure: Chart\nChart: /html/123/fig.png"
     result = convert_markdown_to_lark(md, arxiv_html_base="https://ar5iv.labs.arxiv.org")
     assert 'url="https://ar5iv.labs.arxiv.org/html/123/fig.png"' in result
+
+
+def test_display_math_centered() -> None:
+    md = r"$$ (1) $Goodput=\frac{A}{B}$ $$"
+    result = convert_markdown_to_lark(md)
+    assert result == "$$\nGoodput=\\frac{A}{B} \\qquad (1)\n$$"
+
+
+def test_display_math_no_number() -> None:
+    md = r"$$ $x + y = z$ $$"
+    result = convert_markdown_to_lark(md)
+    assert result == "$$\nx + y = z\n$$"
+
+
+def test_display_math_without_inner_delimiters() -> None:
+    md = r"$$ x^2 + y^2 $$"
+    result = convert_markdown_to_lark(md)
+    assert result == "$$\nx^2 + y^2\n$$"
+
+
+def test_display_math_multiple_groups() -> None:
+    md = r"$$ (3) $T_{fwd}(M)$ $=\alpha\cdot N$ $$"
+    result = convert_markdown_to_lark(md)
+    assert result == "$$\nT_{fwd}(M) =\\alpha\\cdot N \\qquad (3)\n$$"
