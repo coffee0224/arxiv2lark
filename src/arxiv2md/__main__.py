@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from arxiv2md.ingestion import ingest_paper
+from arxiv2md.lark_adapter import convert_markdown_to_lark
 from arxiv2md.query_parser import parse_arxiv_input
 
 DEFAULT_OUTPUT_FILE = "digest.txt"
@@ -47,10 +48,14 @@ async def _async_main(args: argparse.Namespace) -> None:
         include_frontmatter=args.frontmatter,
     )
 
+    content = result.content
+    if args.lark:
+        content = convert_markdown_to_lark(content)
+
     output_text = _format_output(
         result.summary,
         result.sections_tree,
-        result.content,
+        content,
         include_tree=args.include_tree,
         frontmatter=result.frontmatter,
     )
@@ -151,6 +156,11 @@ def _parse_args() -> argparse.Namespace:
         "--frontmatter",
         action="store_true",
         help="Prepend YAML frontmatter with paper metadata (title, authors, URL, etc.).",
+    )
+    parser.add_argument(
+        "--lark",
+        action="store_true",
+        help="Output Lark-compatible Markdown (e.g., images as HTML <img> tags for preview).",
     )
     return parser.parse_args()
 

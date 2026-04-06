@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 from typing import Iterable
+from urllib.parse import urljoin
 
 from arxiv2md.schemas import SectionNode
 
@@ -23,6 +24,21 @@ _SKIP_KEYWORDS = {"footnotemark:", "equal contribution", "work performed", "list
 _MAX_AUTHOR_PART_LENGTH = 80  # Filter out long contribution statements
 
 
+_ARXIV_BASE = "https://arxiv.org"
+
+
+def _resolve_relative_img_urls(soup: BeautifulSoup) -> None:
+    """Resolve relative <img> src attributes using the HTML <base> tag."""
+    base_tag = soup.find("base")
+    if not base_tag or not base_tag.get("href"):
+        return
+    base_href = urljoin(_ARXIV_BASE + "/", base_tag["href"])
+    for img in soup.find_all("img"):
+        src = img.get("src")
+        if src and not src.startswith(("http://", "https://", "data:")):
+            img["src"] = urljoin(base_href, src)
+
+
 @dataclass
 class ParsedArxivHtml:
     """Parsed content extracted from arXiv HTML."""
@@ -36,6 +52,7 @@ class ParsedArxivHtml:
 def parse_arxiv_html(html: str) -> ParsedArxivHtml:
     """Extract title, authors, abstract, and section tree from HTML."""
     soup = BeautifulSoup(html, "html.parser")
+    _resolve_relative_img_urls(soup)
     document_root = _find_document_root(soup)
 
     title = _extract_title(soup)
