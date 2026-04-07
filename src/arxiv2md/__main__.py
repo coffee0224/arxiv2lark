@@ -8,7 +8,11 @@ import sys
 from pathlib import Path
 
 from arxiv2md.ingestion import ingest_paper
-from arxiv2md.lark_adapter import convert_markdown_to_lark
+from arxiv2md.lark_pipeline import (
+    default_output_dir,
+    materialize_lark_output,
+    prepare_lark_output_text,
+)
 from arxiv2md.query_parser import parse_arxiv_input
 
 DEFAULT_OUTPUT_FILE = "digest.txt"
@@ -49,8 +53,9 @@ async def _async_main(args: argparse.Namespace) -> None:
     )
 
     content = result.content
+    images = []
     if args.lark:
-        content = convert_markdown_to_lark(content)
+        content, images = prepare_lark_output_text(content)
 
     output_text = _format_output(
         result.summary,
@@ -59,8 +64,35 @@ async def _async_main(args: argparse.Namespace) -> None:
         include_tree=args.include_tree,
         frontmatter=result.frontmatter,
     )
-    output_target = args.output if args.output is not None else DEFAULT_OUTPUT_FILE
 
+    # When --lark is set, -o is interpreted as a *directory* that holds the
+    # digest, the downloaded images, and the manifest sidecar. Without --lark
+    # we keep the legacy file-based output for backwards compatibility.
+    if args.lark:
+        if args.output == "-":
+            sys.stdout.write(output_text)
+            if not output_text.endswith("\n"):
+                sys.stdout.write("\n")
+            sys.stdout.flush()
+            return
+
+        out_dir = Path(args.output) if args.output else default_output_dir(query.arxiv_id)
+        digest_path, manifest_path = await materialize_lark_output(
+            full_text=output_text,
+            images=images,
+            out_dir=out_dir,
+        )
+        print(f"Output directory: {out_dir}")
+        print(f"  digest:   {digest_path.name}")
+        print(f"  manifest: {manifest_path.name} ({len(images)} images)")
+        downloaded = sum(1 for img in images if img.local_path)
+        if images:
+            print(f"  downloaded: {downloaded}/{len(images)}")
+        print("\nSummary:")
+        print(result.summary)
+        return
+
+    output_target = args.output if args.output is not None else DEFAULT_OUTPUT_FILE
     if output_target == "-":
         sys.stdout.write(output_text)
         if not output_text.endswith("\n"):

@@ -2,7 +2,10 @@
 
 from __future__ import annotations
 
-from arxiv2md.lark_adapter import convert_markdown_to_lark
+from arxiv2md.lark_adapter import (
+    convert_markdown_to_lark,
+    convert_markdown_to_lark_with_manifest,
+)
 
 
 def test_figure_block_converted_to_image_tag() -> None:
@@ -65,3 +68,51 @@ def test_display_math_multiple_groups() -> None:
     md = r"$$ (3) $T_{fwd}(M)$ $=\alpha\cdot N$ $$"
     result = convert_markdown_to_lark(md)
     assert result == "$$\nT_{fwd}(M) =\\alpha\\cdot N \\qquad (3)\n$$"
+
+
+def test_manifest_mode_emits_anchors_and_collects_images() -> None:
+    md = (
+        "Intro text\n"
+        "Figure: Alpha\nDiagram: https://arxiv.org/html/x/a.png\n"
+        "Middle text\n"
+        "Figure: Beta\nDiagram: https://arxiv.org/html/x/b.png\n"
+        "Tail text"
+    )
+    result, images = convert_markdown_to_lark_with_manifest(md)
+
+    assert "[[IMG:1]]" in result
+    assert "[[IMG:2]]" in result
+    assert "<image" not in result  # anchors replace inline tags
+
+    assert [img.id for img in images] == ["fig-1", "fig-2"]
+    assert images[0].url == "https://arxiv.org/html/x/a.png"
+    assert images[0].caption == "Alpha"
+    assert images[0].anchor == "[[IMG:1]]"
+    assert images[1].url == "https://arxiv.org/html/x/b.png"
+    assert images[1].caption == "Beta"
+    assert all(img.local_path is None for img in images)
+
+
+def test_manifest_mode_no_images_returns_empty_list() -> None:
+    md = "## Intro\n\nplain text only"
+    result, images = convert_markdown_to_lark_with_manifest(md)
+    assert images == []
+    assert result == md
+
+
+def test_split_by_anchors_basic() -> None:
+    from arxiv2md.lark_import import _split_by_anchors
+
+    md = "before\n[[IMG:1]]\nmiddle\n[[IMG:2]]\nafter"
+    segments, anchors = _split_by_anchors(md)
+    assert anchors == ["[[IMG:1]]", "[[IMG:2]]"]
+    assert segments == ["before", "middle", "after"]
+
+
+def test_split_by_anchors_no_anchors() -> None:
+    from arxiv2md.lark_import import _split_by_anchors
+
+    md = "no images here"
+    segments, anchors = _split_by_anchors(md)
+    assert anchors == []
+    assert segments == [md]

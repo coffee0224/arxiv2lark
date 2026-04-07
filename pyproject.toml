@@ -35,6 +35,7 @@ server = [
 
 [project.scripts]
 arxiv2md = "arxiv2md.__main__:main"
+arxiv2lark = "arxiv2md.arxiv2lark_cli:main"
 
 [project.urls]
 homepage = "https://github.com/timf34/arxiv2md"
