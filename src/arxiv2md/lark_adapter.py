@@ -117,7 +117,15 @@ def _convert(
 
 
 def _clean_display_math(match: re.Match) -> str:
-    """Clean display math for Lark: strip nested $, move eq number, ensure $$…$$ block."""
+    """Clean display math and emit a centered Lark equation paragraph.
+
+    Lark's markdown parser turns ``$$...$$`` blocks into a left-aligned
+    paragraph containing an inline equation element — i.e. it does *not*
+    render display math as a centered block by default. To get the
+    expected centered display, we wrap the cleaned LaTeX in
+    ``<equation>...</equation>`` (Lark's recommended equation tag) and
+    attach the ``{align="center"}`` paragraph attribute.
+    """
     inner = match.group(1).strip()
 
     # Extract leading equation number like "(1)" or "(2.3)"
@@ -139,7 +147,7 @@ def _clean_display_math(match: re.Match) -> str:
     if eq_num:
         inner = f"{inner} \\qquad {eq_num}"
 
-    return f"$$\n{inner}\n$$"
+    return f'<equation>{inner}</equation> {{align="center"}}'
 
 
 def _resolve_src(src: str, base: str) -> str:

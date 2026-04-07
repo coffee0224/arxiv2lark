@@ -49,25 +49,25 @@ def test_custom_base_url() -> None:
 def test_display_math_centered() -> None:
     md = r"$$ (1) $Goodput=\frac{A}{B}$ $$"
     result = convert_markdown_to_lark(md)
-    assert result == "$$\nGoodput=\\frac{A}{B} \\qquad (1)\n$$"
+    assert result == '<equation>Goodput=\\frac{A}{B} \\qquad (1)</equation> {align="center"}'
 
 
 def test_display_math_no_number() -> None:
     md = r"$$ $x + y = z$ $$"
     result = convert_markdown_to_lark(md)
-    assert result == "$$\nx + y = z\n$$"
+    assert result == '<equation>x + y = z</equation> {align="center"}'
 
 
 def test_display_math_without_inner_delimiters() -> None:
     md = r"$$ x^2 + y^2 $$"
     result = convert_markdown_to_lark(md)
-    assert result == "$$\nx^2 + y^2\n$$"
+    assert result == '<equation>x^2 + y^2</equation> {align="center"}'
 
 
 def test_display_math_multiple_groups() -> None:
     md = r"$$ (3) $T_{fwd}(M)$ $=\alpha\cdot N$ $$"
     result = convert_markdown_to_lark(md)
-    assert result == "$$\nT_{fwd}(M) =\\alpha\\cdot N \\qquad (3)\n$$"
+    assert result == '<equation>T_{fwd}(M) =\\alpha\\cdot N \\qquad (3)</equation> {align="center"}'
 
 
 def test_manifest_mode_emits_anchors_and_collects_images() -> None:
